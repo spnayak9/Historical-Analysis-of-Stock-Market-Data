@@ -93,8 +93,7 @@ Each CSV contains:
 
 # 📌 **4. Fabric Lakehouse (Bronze Layer)**
 
-> 📷 Insert screenshot: Lakehouse item in workspace 
-![Workspace](Images\Workspace_items.png)
+> 
 
 After adding the SharePoint folder as a shortcut, CSV files are accessible directly in Fabric through the **Files** section of the Lakehouse.
 
