@@ -1,0 +1,2136 @@
+{
+  "name": "Stock Market Analysis of Indian Banks",
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "en-US",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "discourageImplicitMeasures": true,
+    "sourceQueryCulture": "en-IN",
+    "tables": [
+      {
+        "name": "Market Overview",
+        "lineageTag": "d256d9e6-6c5c-4071-ae49-1859a0165a8c",
+        "partitions": [
+          {
+            "name": "Market Overview",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"i44FAA==\", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),",
+                "    #\"Changed Type\" = Table.TransformColumnTypes(Source,{{\"Column1\", type text}}),",
+                "    #\"Removed Columns\" = Table.RemoveColumns(#\"Changed Type\",{\"Column1\"})",
+                "in",
+                "    #\"Removed Columns\""
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Number of rows",
+            "expression": "CALCULATE(COUNTROWS(Stocks))",
+            "formatString": "0",
+            "lineageTag": "818560d7-f4e1-4458-ae5b-a8a65e5e5618"
+          },
+          {
+            "name": "Missing Market Days (via DateTable)",
+            "expression": [
+              "",
+              "VAR SecCode = SELECTEDVALUE( Securities[Security Codes] )",
+              "VAR MinD =",
+              "    CALCULATE(",
+              "        MIN( Stocks[Date] ),",
+              "        FILTER( ALL( Stocks ), Stocks[Security Codes] = SecCode )",
+              "    )",
+              "VAR MaxD =",
+              "    CALCULATE(",
+              "        MAX( Stocks[Date] ),",
+              "        FILTER( ALL( Stocks ), Stocks[Security Codes] = SecCode )",
+              "    )",
+              "VAR PeriodDates =",
+              "    CALCULATETABLE(",
+              "        VALUES( DateTable[Date] ),",
+              "        DateTable[Date] >= MinD,",
+              "        DateTable[Date] <= MaxD",
+              "    )",
+              "VAR StockDates =",
+              "    CALCULATETABLE(",
+              "        VALUES( Stocks[Date] ),",
+              "        ALL( Stocks ),",
+              "        Stocks[Security Codes] = SecCode,",
+              "        Stocks[Date] >= MinD,",
+              "        Stocks[Date] <= MaxD",
+              "    )",
+              "VAR MissingDates = EXCEPT( PeriodDates, StockDates )",
+              "RETURN",
+              "IF(",
+              "    SecCode = BLANK() || MinD = BLANK() || MaxD = BLANK(),",
+              "    0,",
+              "    COUNTROWS( MissingDates )",
+              ")",
+              ""
+            ],
+            "formatString": "0",
+            "lineageTag": "cbb883d2-ea90-44b0-bc5a-36cf8d24e306"
+          },
+          {
+            "name": "Total Turnover",
+            "expression": [
+              "",
+              "CALCULATE(",
+              "    SUM( Stocks[Total Turnover _Rs._] ),",
+              "    ALLSELECTED( 'DateTable'[Date] ),",
+              "    ALLSELECTED( Securities[Security Codes] )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.00;#,0.00\\ -\"₹\";\"₹\"\\ #,0.00",
+            "lineageTag": "e2b2cb29-1ff9-4fee-8a3d-f27d5cfbfc96",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Total Turnover % vs Prev",
+            "expression": [
+              "",
+              "VAR Current1 = [Total Turnover]",
+              "VAR PrevPeriod =",
+              "    CALCULATE( [Total Turnover], SAMEPERIODLASTYEAR( DateTable[Date] ) ) -- or use DATEADD(DateTable[Date], -1, YEAR)",
+              "RETURN",
+              "IF( PrevPeriod = 0, BLANK(), DIVIDE( Current1 - PrevPeriod, PrevPeriod ) )",
+              ""
+            ],
+            "lineageTag": "6d0fa39a-8cab-4b2e-9525-ba4f2f4f09f1",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Sector Daily Return StdDev",
+            "expression": [
+              "",
+              "-- Population std dev across rows in the filter context",
+              "VAR RowStd =",
+              "    STDEVX.P(",
+              "        Stocks,",
+              "        DIVIDE( Stocks[Close Price] - Stocks[Open Price], Stocks[Open Price] )",
+              "    )",
+              "RETURN",
+              "RowStd",
+              ""
+            ],
+            "lineageTag": "032d7555-8610-4b69-a8dc-5fd7e849aabd",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "PerSecurity_Return",
+            "expression": [
+              "",
+              "-- 1. Per-security total return across the selected period",
+              "VAR MinD = CALCULATE( MIN( Stocks[Date] ), ALLSELECTED( DateTable ) )",
+              "VAR MaxD = CALCULATE( MAX( Stocks[Date] ), ALLSELECTED( DateTable ) )",
+              "RETURN",
+              "AVERAGEX(",
+              "    VALUES( Stocks[Security Codes] ),",
+              "    VAR Sec = [Security Codes] -- context",
+              "    VAR FirstClose =",
+              "        CALCULATE(",
+              "            FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "            FILTER( ALL( Stocks ),",
+              "                Stocks[Security Codes] = Sec && Stocks[Date] = MinD",
+              "            )",
+              "        )",
+              "    VAR LastClose =",
+              "        CALCULATE(",
+              "            FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "            FILTER( ALL( Stocks ),",
+              "                Stocks[Security Codes] = Sec && Stocks[Date] = MaxD",
+              "            )",
+              "        )",
+              "    RETURN",
+              "    IF( ISBLANK( FirstClose ) || ISBLANK( LastClose ), BLANK(), DIVIDE( LastClose - FirstClose, FirstClose ) )",
+              ")",
+              "",
+              "",
+              ""
+            ],
+            "lineageTag": "ff080b4a-86f4-48cd-9b34-6156f2e08df0",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Market Bullish %",
+            "expression": [
+              "",
+              "-- 2. Bullish % (positive return)",
+              "VAR SecReturns =",
+              "    ADDCOLUMNS(",
+              "        VALUES( Stocks[Security Codes] ),",
+              "        \"TotalReturn\",",
+              "            VAR Sec = Stocks[Security Codes]",
+              "            VAR MinD = CALCULATE( MIN( Stocks[Date] ), ALLSELECTED( DateTable ) )",
+              "            VAR MaxD = CALCULATE( MAX( Stocks[Date] ), ALLSELECTED( DateTable ) )",
+              "            VAR FClose = CALCULATE( FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = Sec && Stocks[Date] = MinD ) )",
+              "            VAR LClose = CALCULATE( FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = Sec && Stocks[Date] = MaxD ) )",
+              "            RETURN IF( ISBLANK( FClose ) || ISBLANK( LClose ), BLANK(), DIVIDE( LClose - FClose, FClose ) )",
+              "    )",
+              "VAR PositiveSec = COUNTROWS( FILTER( SecReturns, [TotalReturn] > 0 ) )",
+              "VAR TotalSec = COUNTROWS( FILTER( SecReturns, NOT( ISBLANK( [TotalReturn] ) ) ) )",
+              "RETURN",
+              "IF( TotalSec = 0, 0, DIVIDE( PositiveSec, TotalSec ) )"
+            ],
+            "lineageTag": "3fb3123c-6e11-4e54-8713-b54cf4a9eba0",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Daily Return (row)",
+            "expression": [
+              "",
+              "DIVIDE(",
+              "    SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ),",
+              "    SUM( Stocks[Open Price] ),",
+              "    BLANK()",
+              ")",
+              ""
+            ],
+            "lineageTag": "ed457c80-841f-4a62-963f-6b753a226bc5",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Period Start Date",
+            "expression": "MIN( DateTable[Date] )",
+            "formatString": "General Date",
+            "lineageTag": "6b8730a6-9052-4b3f-b5e6-870566e11cfa"
+          },
+          {
+            "name": "Period End Date",
+            "expression": "MAX( DateTable[Date] )",
+            "formatString": "General Date",
+            "lineageTag": "208b6638-114d-4d19-b1f5-363e1d448df5"
+          },
+          {
+            "name": "First Close in Period",
+            "expression": [
+              "",
+              "VAR _minD = [Period Start Date]",
+              "RETURN",
+              "CALCULATE(",
+              "    FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "    FILTER(",
+              "        ALL(Stocks),",
+              "        Stocks[Date] = _minD",
+              "            && Stocks[Security Codes] = SELECTEDVALUE(Stocks[Security Codes])",
+              "    )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "35a0aea0-827b-46e7-aa67-0071aab2ce66",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Last Close in Period",
+            "expression": [
+              "",
+              "VAR _maxD = [Period End Date]",
+              "RETURN",
+              "CALCULATE(",
+              "    LASTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "    FILTER(",
+              "        ALL(Stocks),",
+              "        Stocks[Date] = _maxD",
+              "            && Stocks[Security Codes] = SELECTEDVALUE(Stocks[Security Codes])",
+              "    )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "1b61d871-a9a3-49f5-863b-78046990b3cf",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Period Return %",
+            "expression": [
+              "",
+              "VAR _minD = [Period Start Date]",
+              "VAR _maxD = [Period End Date]",
+              "VAR _firstClose =",
+              "    CALCULATE(",
+              "        FIRSTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "        FILTER( ALL(Stocks), Stocks[Date] = _minD && Stocks[Security Codes] = SELECTEDVALUE(Stocks[Security Codes]) )",
+              "    )",
+              "VAR _lastClose =",
+              "    CALCULATE(",
+              "        LASTNONBLANK( Stocks[Close Price], Stocks[Close Price] ),",
+              "        FILTER( ALL(Stocks), Stocks[Date] = _maxD && Stocks[Security Codes] = SELECTEDVALUE(Stocks[Security Codes]) )",
+              "    )",
+              "RETURN",
+              "IF(",
+              "    OR( ISBLANK(_firstClose), ISBLANK(_lastClose) ),",
+              "    BLANK(),",
+              "    DIVIDE( _lastClose - _firstClose, _firstClose )",
+              ")",
+              ""
+            ],
+            "lineageTag": "88068a45-52fd-4e59-8a0b-0f94c1170a4e",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Sector Avg Return %",
+            "expression": [
+              "",
+              "AVERAGEX(",
+              "    VALUES( Securities[Security Codes] ),",
+              "    CALCULATE( [PerSecurity_PeriodReturn%] )",
+              ")",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "f620ae86-750d-4629-a0f8-4324b35e781a"
+          },
+          {
+            "name": "Sector Avg Close",
+            "expression": [
+              "",
+              "",
+              "    CALCULATE( AVERAGE( Stocks[Close Price] ),",
+              "     KEEPFILTERS(VALUES(DateTable))",
+              "     )",
+              "",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "f0e8d7e7-e048-498e-9d58-28538017ba69",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Security Volatility",
+            "expression": [
+              "",
+              "VAR Sec = SELECTEDVALUE( Stocks[Security Codes] )",
+              "RETURN",
+              "STDEVX.P(",
+              "    FILTER( ALL( DateTable[Date] ),",
+              "        CALCULATE( SUM( Stocks[No.of Shares] ) ) >= 0",
+              "    ),",
+              "    CALCULATE( DIVIDE( SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ), SUM( Stocks[Open Price] ) ), ALL( DateTable[Date] ) )",
+              ")",
+              ""
+            ],
+            "lineageTag": "69240567-9490-48e2-9668-affbaae2c185",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Last Close In Selection",
+            "expression": [
+              "",
+              "VAR _sec = SELECTEDVALUE( Securities[Security Codes] )",
+              "VAR _maxDate = [Period End Date]",
+              "VAR _lastDate =",
+              "    CALCULATE(",
+              "        MAX( Stocks[Date] ),",
+              "        FILTER( ALL( Stocks ), Stocks[Security Codes] = _sec && Stocks[Date] >= [Period Start Date] && Stocks[Date] <= MAX(DateTable[Date]) )",
+              "    )",
+              "RETURN",
+              "IF( ISBLANK( _lastDate ), BLANK(),",
+              "    CALCULATE( MAX( Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = _sec && Stocks[Date] = _lastDate ) )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "63fb25b8-b72a-4ac3-b02e-52df5605236e",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "PerSecurity_PeriodReturn%",
+            "expression": [
+              "",
+              "VAR _sec = SELECTEDVALUE( Securities[Security Codes] )",
+              "VAR _min = MIN( 'DateTable'[Date] )",
+              "VAR _max = MAX( 'DateTable'[Date] )",
+              "VAR _firstDate = CALCULATE( MIN( Stocks[Date] ), FILTER( ALL(Stocks), Stocks[Security Codes] = _sec && Stocks[Date] >= _min && Stocks[Date] <= _max ) )",
+              "VAR _lastDate  = CALCULATE( MAX( Stocks[Date] ), FILTER( ALL(Stocks), Stocks[Security Codes] = _sec && Stocks[Date] >= _min && Stocks[Date] <= _max ) )",
+              "VAR _firstClose = IF( ISBLANK(_firstDate), BLANK(),",
+              "                      CALCULATE( MAX( Stocks[Close Price] ), FILTER( ALL(Stocks), Stocks[Security Codes] = _sec && Stocks[Date] = _firstDate ) ) )",
+              "VAR _lastClose  = IF( ISBLANK(_lastDate), BLANK(),",
+              "                      CALCULATE( MAX( Stocks[Close Price] ), FILTER( ALL(Stocks), Stocks[Security Codes] = _sec && Stocks[Date] = _lastDate ) ) )",
+              "RETURN",
+              "IF( OR( ISBLANK(_firstClose), ISBLANK(_lastClose) ), BLANK(),",
+              "    DIVIDE( _lastClose - _firstClose, _firstClose ) )",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "83551255-e4c1-4edf-8935-bac168c0a870"
+          },
+          {
+            "name": "Banks_Positive_Count",
+            "expression": [
+              "",
+              "COUNTROWS(",
+              "    FILTER(",
+              "        ADDCOLUMNS( VALUES( Securities[Security Codes] ), \"R\", CALCULATE( [PerSecurity_PeriodReturn%] ) ),",
+              "        [R] > 0",
+              "    )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "dc8e0678-e14a-4bbd-9c2a-78a58985c329"
+          },
+          {
+            "name": "Banks Visible Count",
+            "expression": [
+              "",
+              "COUNTROWS( VALUES( Securities[Security Codes] ) )"
+            ],
+            "formatString": "0",
+            "lineageTag": "abc797e2-1357-4636-88d0-b31f6df1cb8b"
+          },
+          {
+            "name": "Market Mood % Bullish",
+            "expression": [
+              "",
+              "DIVIDE( [Banks_Positive_Count], [Banks Visible Count], 0 )"
+            ],
+            "lineageTag": "f18e045f-3ad2-489c-aa58-c820ffcd1be6",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Rank by Period Return",
+            "expression": [
+              "",
+              "RANKX(",
+              "    ALLSELECTED( Securities[Security Codes] ),",
+              "    CALCULATE( [PerSecurity_PeriodReturn%] ),",
+              "    ,",
+              "    DESC,",
+              "    Dense",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "f937979e-2c45-46b6-93ad-8e0fcc122b2f"
+          },
+          {
+            "name": "Avg Daily Volume",
+            "expression": [
+              "",
+              "AVERAGEX(",
+              "    VALUES( 'DateTable'[Date] ),",
+              "    CALCULATE( SUM( Stocks[No.of Shares] ) )",
+              ")",
+              ""
+            ],
+            "lineageTag": "ea3645ac-0cb2-41e0-ae9b-969d82ec4bf5",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Sector Volatility (σ)",
+            "expression": [
+              "",
+              "VAR _dates = VALUES( 'DateTable'[Date] )",
+              "RETURN",
+              "STDEVX.P(",
+              "    FILTER(",
+              "        _dates,",
+              "        NOT(",
+              "            ISBLANK(",
+              "                CALCULATE(",
+              "                    DIVIDE( SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ), SUM( Stocks[Open Price] ) )",
+              "                )",
+              "            )",
+              "        )",
+              "    ),",
+              "    CALCULATE( DIVIDE( SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ), SUM( Stocks[Open Price] ) ) )",
+              ")",
+              ""
+            ],
+            "lineageTag": "9b3a95a6-a15c-4450-ac05-725dd5667b25",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Total Turnover (₹)",
+            "expression": [
+              "",
+              "SUM( Stocks[Total Turnover _Rs._] )",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "30d4d9db-9e7b-4044-b086-77d6ebb0abe9",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "First Close In Selection",
+            "expression": [
+              "",
+              "VAR _sec = SELECTEDVALUE( Securities[Security Codes] )",
+              "VAR _minDate = [Period Start Date]",
+              "VAR _firstDate =",
+              "    CALCULATE(",
+              "        MIN( Stocks[Date] ),",
+              "        FILTER( ALL( Stocks ), Stocks[Security Codes] = _sec && Stocks[Date] >= _minDate && Stocks[Date] <= [Period End Date] )",
+              "    )",
+              "RETURN",
+              "IF( ISBLANK( _firstDate ), BLANK(),",
+              "    CALCULATE( MAX( Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = _sec && Stocks[Date] = _firstDate ) )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "b628bb99-1d9e-429f-ac00-16452dafa5b0",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Market Mood %",
+            "expression": [
+              "",
+              "VAR MinD = MIN( 'DateTable'[Date] )",
+              "VAR MaxD = MAX( 'DateTable'[Date] )",
+              "",
+              "/* create a one-column table of visible security codes */",
+              "VAR SecList =",
+              "    SELECTCOLUMNS(",
+              "        VALUES( Securities[Security Codes] ),",
+              "        \"Sec\", [Security Codes]",
+              "    )",
+              "",
+              "/* add first/last available date for each security inside the selection */",
+              "VAR SecsWithDates =",
+              "    ADDCOLUMNS(",
+              "        SecList,",
+              "        \"FirstDate\",",
+              "            CALCULATE(",
+              "                MIN( Stocks[Date] ),",
+              "                FILTER( ALL( Stocks ),",
+              "                    Stocks[Security Codes] = [Sec]",
+              "                    && Stocks[Date] >= MinD",
+              "                    && Stocks[Date] <= MaxD",
+              "                )",
+              "            ),",
+              "        \"LastDate\",",
+              "            CALCULATE(",
+              "                MAX( Stocks[Date] ),",
+              "                FILTER( ALL( Stocks ),",
+              "                    Stocks[Security Codes] = [Sec]",
+              "                    && Stocks[Date] >= MinD",
+              "                    && Stocks[Date] <= MaxD",
+              "                )",
+              "            )",
+              "    )",
+              "",
+              "/* add first/last close price for those dates (if available) */",
+              "VAR SecsWithCloses =",
+              "    ADDCOLUMNS(",
+              "        SecsWithDates,",
+              "        \"FirstClose\",",
+              "            CALCULATE(",
+              "                MAX( Stocks[Close Price] ),",
+              "                FILTER( ALL( Stocks ),",
+              "                    Stocks[Security Codes] = [Sec]",
+              "                    && Stocks[Date] = [FirstDate]",
+              "                )",
+              "            ),",
+              "        \"LastClose\",",
+              "            CALCULATE(",
+              "                MAX( Stocks[Close Price] ),",
+              "                FILTER( ALL( Stocks ),",
+              "                    Stocks[Security Codes] = [Sec]",
+              "                    && Stocks[Date] = [LastDate]",
+              "                )",
+              "            )",
+              "    )",
+              "",
+              "/* compute per-security return (BLANK if no valid first/last close) */",
+              "VAR SecsWithReturn =",
+              "    ADDCOLUMNS(",
+              "        SecsWithCloses,",
+              "        \"Return\",",
+              "            IF(",
+              "                OR( ISBLANK( [FirstClose] ), ISBLANK( [LastClose] ) ),",
+              "                BLANK(),",
+              "                DIVIDE( [LastClose] - [FirstClose], [FirstClose] )",
+              "            )",
+              "    )",
+              "",
+              "/* counts */",
+              "VAR PosCount = COUNTROWS( FILTER( SecsWithReturn, [Return] > 0 ) )",
+              "VAR NegCount = COUNTROWS( FILTER( SecsWithReturn, [Return] < 0 ) )",
+              "",
+              "RETURN",
+              "IF( (PosCount + NegCount) = 0,",
+              "    BLANK(),                             /* no securities with a valid return in selection */",
+              "    DIVIDE( PosCount, PosCount + NegCount )",
+              ")",
+              ""
+            ],
+            "lineageTag": "38c12d01-6d21-4fb2-bd3f-0c4c5702a9ed",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Banks_Negative_Count",
+            "expression": [
+              "",
+              "COUNTROWS(",
+              "    FILTER(",
+              "        ADDCOLUMNS( VALUES( Securities[Security Codes] ), \"R\", CALCULATE( [PerSecurity_PeriodReturn%] ) ),",
+              "        [R] < 0",
+              "    )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "37d704ab-cad0-4c23-bc88-bdaebd309589"
+          },
+          {
+            "name": "Banks_Blank_Count",
+            "expression": [
+              "",
+              "COUNTROWS(",
+              "    FILTER(",
+              "        ADDCOLUMNS( VALUES( Securities[Security Codes] ), \"R\", CALCULATE( [PerSecurity_PeriodReturn%] ) ),",
+              "        ISBLANK( [R] )",
+              "    )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "4b415d57-95f0-41ba-a438-80b65a644466"
+          },
+          {
+            "name": "Banks_HasReturn_Count",
+            "expression": [
+              "",
+              "COUNTROWS(",
+              "    FILTER(",
+              "        ADDCOLUMNS( VALUES( Securities[Security Codes] ), \"R\", CALCULATE( [PerSecurity_PeriodReturn%] ) ),",
+              "        NOT( ISBLANK([R]) )",
+              "    )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "4f6d13fa-fdc6-42d4-b63d-6574fe52f0eb"
+          },
+          {
+            "name": "Market Mood % (Pos / Pos+Neg)",
+            "expression": [
+              "",
+              "VAR pos = [Banks_Positive_Count]",
+              "VAR neg = [Banks_Negative_Count]",
+              "VAR denom = pos + neg",
+              "RETURN",
+              "IF( denom = 0, BLANK(), DIVIDE( pos, denom ) )"
+            ],
+            "lineageTag": "63d6a2da-c369-4052-8a4c-4358a4624d15",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Market Mood % (vs Visible)",
+            "expression": [
+              "",
+              "VAR pos = [Banks_Positive_Count]",
+              "VAR visible1 = [Banks_HasReturn_Count]",
+              "RETURN",
+              "IF( visible1 = 0, BLANK(), DIVIDE( pos, visible1 ) )",
+              ""
+            ],
+            "lineageTag": "ecad1b44-45ac-4911-a46a-817fdd77cfb0",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          }
+        ],
+        "changedProperties": [
+          {
+            "property": "Name"
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "DateTable",
+        "lineageTag": "7e61204e-135a-4399-b124-121bbfae6009",
+        "dataCategory": "Time",
+        "columns": [
+          {
+            "type": "calculatedTableColumn",
+            "name": "Date",
+            "dataType": "dateTime",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "isKey": true,
+            "sourceColumn": "[Date]",
+            "formatString": "General Date",
+            "lineageTag": "e35c7d0d-a206-4ed5-9987-d9b3273b2655",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "Year",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[Year]",
+            "formatString": "0",
+            "lineageTag": "dbdfbd13-aff2-451d-8442-d7f819e73751",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "Quarter",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[Quarter]",
+            "formatString": "0",
+            "lineageTag": "caeb8f0a-7f9e-499a-bb43-3513f7118bb2",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "QuarterName",
+            "dataType": "string",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[QuarterName]",
+            "lineageTag": "5134df82-2f58-4741-b5f7-53241b0a77d4",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "MonthNo",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[MonthNo]",
+            "formatString": "0",
+            "lineageTag": "65f68710-5628-4cc1-81a3-76de40211eaf",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "MonthName",
+            "dataType": "string",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[MonthName]",
+            "lineageTag": "7c120262-b113-448f-9645-7ecaa30ffc16",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "WeekdayNumber",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[WeekdayNumber]",
+            "formatString": "0",
+            "lineageTag": "8a9bc847-696c-45d7-8987-52863295b6dd",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "WeekdayName",
+            "dataType": "string",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[WeekdayName]",
+            "lineageTag": "7f6ebdfd-6edc-4b2b-8fee-7efe9009eb90",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "Day",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[Day]",
+            "formatString": "0",
+            "lineageTag": "f9c83c6b-71e5-42f7-8bd0-984fe12e78b2",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "WeekOfMonth",
+            "dataType": "int64",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[WeekOfMonth]",
+            "formatString": "0",
+            "lineageTag": "a6f638de-9940-4abf-b099-3253f3e7b40b",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "type": "calculatedTableColumn",
+            "name": "WeekOfMonthName",
+            "dataType": "string",
+            "isNameInferred": true,
+            "isDataTypeInferred": true,
+            "sourceColumn": "[WeekOfMonthName]",
+            "lineageTag": "b16dbb51-5c48-4451-b134-1f8c46891397",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DateTable",
+            "mode": "import",
+            "source": {
+              "type": "calculated",
+              "expression": [
+                "",
+                "VAR MinDate = MINX( ALL( Stocks ), Stocks[Date] )",
+                "VAR MaxDate = MAXX( ALL( Stocks ), Stocks[Date] )",
+                "RETURN",
+                "ADDCOLUMNS(",
+                "    CALENDAR( MinDate, MaxDate ),",
+                "",
+                "    -- Basic date parts",
+                "    \"Year\", YEAR( [Date] ),",
+                "    \"Quarter\", QUARTER( [Date] ),                            -- 1..4",
+                "    \"QuarterName\",",
+                "        SWITCH( QUARTER([Date]),",
+                "            1, \"First\",",
+                "            2, \"Second\",",
+                "            3, \"Third\",",
+                "            4, \"Fourth\",",
+                "            BLANK()",
+                "        ),",
+                "",
+                "    \"MonthNo\", MONTH( [Date] ),                             -- 1..12",
+                "    \"MonthName\", FORMAT( [Date], \"MMM\" ),                   -- Jan, Feb, ...",
+                "",
+                "    -- Weekday: return 0 for Sunday, 1 for Monday, ... 6 for Saturday",
+                "    \"WeekdayNumber\", WEEKDAY( [Date], 1 ) - 1,               -- WEEKDAY(...,1) => 1=Sun, so subtract 1",
+                "    \"WeekdayName\", FORMAT( [Date], \"ddd\" ),                 -- Sun, Mon, Tue, ...",
+                "",
+                "    -- Day of month",
+                "    \"Day\", DAY( [Date] ),",
+                "",
+                "    -- Week of month (number) and its string form",
+                "    -- Approach: compute offset (weekday of 1st day of month, 0=Sun),",
+                "    -- then group days into 7-day buckets starting from the first calendar week.",
+                "    \"WeekOfMonth\",",
+                "        VAR FirstOfMonth = DATE( YEAR([Date]), MONTH([Date]), 1 )",
+                "        VAR FirstOffset = WEEKDAY( FirstOfMonth, 1 ) - 1   -- 0..6 (0->Sun)",
+                "        RETURN INT( ( DAY([Date]) + FirstOffset - 1 ) / 7 ) + 1,",
+                "",
+                "    \"WeekOfMonthName\",",
+                "        VAR _w = ",
+                "            VAR _F = DATE( YEAR([Date]), MONTH([Date]), 1 )",
+                "            VAR _O = WEEKDAY( _F, 1 ) - 1",
+                "            RETURN INT( ( DAY([Date]) + _O - 1 ) / 7 ) + 1",
+                "        RETURN",
+                "            SWITCH( _w,",
+                "                1, \"First\",",
+                "                2, \"Second\",",
+                "                3, \"Third\",",
+                "                4, \"Fourth\",",
+                "                5, \"Fifth\",",
+                "                6, \"Sixth\",",
+                "                FORMAT( _w, \"0\" )",
+                "            )",
+                ")",
+                ""
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_Id",
+            "value": "0d35fdebdf4b4fb997b48966d05245e0"
+          }
+        ]
+      },
+      {
+        "name": "Stocks",
+        "lineageTag": "15bab103-ba3f-4383-ae73-1fc633a632a6",
+        "columns": [
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "Long Date",
+            "lineageTag": "c2fcc341-a06b-4f0c-90d8-e682a02a1f98",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "UnderlyingDateTimeDataType",
+                "value": "Date"
+              }
+            ]
+          },
+          {
+            "name": "Open Price",
+            "dataType": "decimal",
+            "sourceColumn": "Open Price",
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "1adbc6e0-cd7b-4fb5-abcc-b08c2946750e",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "High Price",
+            "dataType": "decimal",
+            "sourceColumn": "High Price",
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "e2e2600c-83ad-417a-a8f7-a05bd2189975",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Low Price",
+            "dataType": "decimal",
+            "sourceColumn": "Low Price",
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "2fa2c78f-e8e0-4a73-aa8f-90b736b7f485",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Close Price",
+            "dataType": "decimal",
+            "sourceColumn": "Close Price",
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "9965dc11-72f7-4098-8079-6bd3983e4dd1",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "WAP",
+            "dataType": "double",
+            "sourceColumn": "WAP",
+            "lineageTag": "702a358c-e990-45ab-8275-4953f04dc2fe",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "No.of Shares",
+            "dataType": "int64",
+            "sourceColumn": "No.of Shares",
+            "formatString": "0",
+            "lineageTag": "cfb1bb7a-6bbc-4656-b13a-d5808c8f61b9",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "No. of Trades",
+            "dataType": "int64",
+            "sourceColumn": "No. of Trades",
+            "formatString": "0",
+            "lineageTag": "9539b2d8-023a-4c2f-b690-469a1cafdeed",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Total Turnover _Rs._",
+            "dataType": "decimal",
+            "sourceColumn": "Total Turnover _Rs._",
+            "formatString": "#,0.00",
+            "lineageTag": "3be31c8a-67bc-4442-ac73-751607d5f51d",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Deliverable Quantity",
+            "dataType": "int64",
+            "sourceColumn": "Deliverable Quantity",
+            "formatString": "0",
+            "lineageTag": "7870489f-162a-4a09-a233-bb31ba0a3e3d",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "% Deli. Qty to Traded Qty",
+            "dataType": "double",
+            "sourceColumn": "% Deli. Qty to Traded Qty",
+            "lineageTag": "e06f1aa7-8093-4bb3-811a-9fc17e5fd9f8",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Spread High-Low",
+            "dataType": "double",
+            "sourceColumn": "Spread High-Low",
+            "lineageTag": "abaf8a70-35a7-4d5f-853b-2a806d8057d0",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Spread Close-Open",
+            "dataType": "double",
+            "sourceColumn": "Spread Close-Open",
+            "lineageTag": "97603828-fff1-4b38-9087-e42ae7a79d75",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Security Codes",
+            "dataType": "int64",
+            "sourceColumn": "Security Codes",
+            "formatString": "0",
+            "lineageTag": "9e20fdba-a51e-4a9e-bdb0-6a651305d355",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Stocks",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Sql.Database(\"vv2iwx4oxwaebpogsiees6rd6q-ruacwdutuhdudgmcc4ti2vk5pe.datawarehouse.fabric.microsoft.com\", \"Stock Data of Indian Banks\"),",
+                "    dbo_Stocks = Source{[Schema=\"dbo\",Item=\"Stocks\"]}[Data],",
+                "    #\"Changed Type\" = Table.TransformColumnTypes(dbo_Stocks,{{\"Open Price\", Currency.Type}, {\"High Price\", Currency.Type}, {\"Low Price\", Currency.Type}, {\"Close Price\", Currency.Type}, {\"WAP\", type number}, {\"Total Turnover _Rs._\", Currency.Type}})",
+                "in",
+                "    #\"Changed Type\""
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navigation"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Securities",
+        "lineageTag": "4e75d222-34fe-4150-a5dc-f6896fd78281",
+        "columns": [
+          {
+            "name": "Bank Names",
+            "dataType": "string",
+            "sourceColumn": "Bank Names",
+            "lineageTag": "a49a58fd-6a78-421d-b847-17d1257636fb",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Security Codes",
+            "dataType": "int64",
+            "sourceColumn": "Security Codes",
+            "formatString": "0",
+            "lineageTag": "7eb1e7fc-fed8-48db-81a9-b9b7d0161fef",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Securities",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Sql.Database(\"vv2iwx4oxwaebpogsiees6rd6q-ruacwdutuhdudgmcc4ti2vk5pe.datawarehouse.fabric.microsoft.com\", \"Stock Data of Indian Banks\"),",
+                "    dbo_Securities = Source{[Schema=\"dbo\",Item=\"Securities\"]}[Data]",
+                "in",
+                "    dbo_Securities"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navigation"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Trends & Patterns",
+        "lineageTag": "1df2bee4-431d-435a-a7ca-d9ef37156d47",
+        "partitions": [
+          {
+            "name": "Trends & Patterns",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"i44FAA==\", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),",
+                "    #\"Changed Type\" = Table.TransformColumnTypes(Source,{{\"Column1\", type text}}),",
+                "    #\"Removed Columns\" = Table.RemoveColumns(#\"Changed Type\",{\"Column1\"})",
+                "in",
+                "    #\"Removed Columns\""
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Close Price (Avg)",
+            "expression": [
+              "",
+              "",
+              "    AVERAGE( Stocks[Close Price] )",
+              "    // REMOVEFILTERS( Stocks )         -- will be constrained by DateTable and Securities by outer filter",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "165d3b49-6ada-4876-b090-661d8b01cef5",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "MA 7 Close",
+            "expression": [
+              "",
+              "VAR _d = MAX( 'DateTable'[Date] )",
+              "RETURN",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    DATESBETWEEN( 'DateTable'[Date], _d - 6, _d )",
+              ")"
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "aad14370-8b20-416f-9e4c-a8cfdc511f22",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "MA 30 Close",
+            "expression": [
+              "",
+              "VAR _d = MAX( 'DateTable'[Date] )",
+              "RETURN",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    DATESBETWEEN( 'DateTable'[Date], _d - 29, _d )",
+              ")"
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "c2481172-4180-4b81-8228-0fa2309c24a6",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "MA 90 Close",
+            "expression": [
+              "",
+              "VAR _d = MAX( 'DateTable'[Date] )",
+              "RETURN",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    DATESBETWEEN( 'DateTable'[Date], _d - 89, _d )",
+              ")"
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "6642717b-25a6-4cd6-900b-f074c647793c",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Daily Return (Avg - Date)",
+            "expression": [
+              "",
+              "",
+              "AVERAGEX(",
+              "    VALUES('DateTable'[Date]),",
+              "    DIVIDE(",
+              "    SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ),",
+              "    SUM( Stocks[Open Price] ),",
+              "    BLANK()",
+              ")",
+              ")",
+              "",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "336b1c10-7894-4f40-9703-808ab1670f0c"
+          },
+          {
+            "name": "Monthly Avg Close",
+            "expression": [
+              "",
+              "AVERAGEX(",
+              "    VALUES( 'DateTable'[MonthNo] ),",
+              "    CALCULATE( AVERAGE( Stocks[Close Price] ) )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "234aa92f-2d70-4898-bbe6-285600434489",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "MoM Avg Price % Change",
+            "expression": [
+              "",
+              "VAR Cur  = [Current Month Avg Close]",
+              "VAR Prev = [Previous Month Avg Close]",
+              "RETURN IF(",
+              "    ISBLANK(Prev),",
+              "    BLANK(),",
+              "    DIVIDE( Cur - Prev, Prev )",
+              ")",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "ba4a7d0d-e3c1-463c-a310-81b062de3f1d"
+          },
+          {
+            "name": "Close Price (Min)",
+            "expression": "MIN( Stocks[Close Price] )",
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "42459950-f6e5-49d2-9d36-3fe62144b2cc",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Close Price (Max)",
+            "expression": [
+              "MAX( Stocks[Close Price] ) ",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "6dfd48bf-ec94-4b0f-9a94-5e57b1587aec",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Selected Bank A Code",
+            "expression": [
+              "",
+              "VAR _name = TRIM( SELECTEDVALUE( BankSelectorA[Bank A], \"\" ) )",
+              "RETURN",
+              "IF(",
+              "    _name = \"\",",
+              "    BLANK(),",
+              "    -- primary exact lookup",
+              "    VAR exact = LOOKUPVALUE( Securities[Security Codes], Securities[Bank Names], _name )",
+              "    RETURN",
+              "        COALESCE(",
+              "            exact,",
+              "            -- fallback using UPPER/TRIM matching (handles casing/spaces)",
+              "            CALCULATE(",
+              "                MAX( Securities[Security Codes] ),",
+              "                FILTER(",
+              "                    ALL( Securities ),",
+              "                    TRIM( UPPER( Securities[Bank Names] ) ) = TRIM( UPPER( _name ) )",
+              "                )",
+              "            )",
+              "        )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "2597c59a-fac9-47b1-8100-e34e21d9863b"
+          },
+          {
+            "name": "Selected Bank B Code",
+            "expression": [
+              "",
+              "VAR _name = TRIM( SELECTEDVALUE( BankSelectorB[Bank B], \"\" ) )",
+              "RETURN",
+              "IF(",
+              "    _name = \"\",",
+              "    BLANK(),",
+              "    VAR exact = LOOKUPVALUE( Securities[Security Codes], Securities[Bank Names], _name )",
+              "    RETURN",
+              "        COALESCE(",
+              "            exact,",
+              "            CALCULATE(",
+              "                MAX( Securities[Security Codes] ),",
+              "                FILTER(",
+              "                    ALL( Securities ),",
+              "                    TRIM( UPPER( Securities[Bank Names] ) ) = TRIM( UPPER( _name ) )",
+              "                )",
+              "            )",
+              "        )",
+              ")"
+            ],
+            "formatString": "0",
+            "lineageTag": "4ebcaf3d-a054-4b83-9111-ef1e4936204e"
+          },
+          {
+            "name": "Close Price - Bank A",
+            "expression": [
+              "",
+              "VAR _code = [Selected Bank A Code]",
+              "RETURN",
+              "IF( ISBLANK(_code), BLANK(),",
+              "    CALCULATE( AVERAGE( Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = _code ) )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "43a022c6-5170-4837-8586-1f353b621f65",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Close Price - Bank B",
+            "expression": [
+              "",
+              "VAR _code = [Selected Bank B Code]",
+              "RETURN",
+              "IF( ISBLANK(_code), BLANK(),",
+              "    CALCULATE( AVERAGE( Stocks[Close Price] ), FILTER( ALL( Stocks ), Stocks[Security Codes] = _code ) )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "2edcd392-20c6-4fc0-9e54-dffd3f5333c8",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Daily Volatility (StdDev)",
+            "expression": [
+              "",
+              "",
+              "STDEVX.P(",
+              "    FILTER( VALUES('DateTable'[Date]), NOT ISBLANK( [Daily Return (row)2] ) ),",
+              "    [Daily Return (row)2]",
+              ")",
+              "",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "d92fe5df-84bf-4459-ac85-5b7352189344"
+          },
+          {
+            "name": "Daily Return (row)2",
+            "expression": [
+              "",
+              "",
+              "",
+              "DIVIDE(",
+              "    SUM( Stocks[Close Price] ) - SUM( Stocks[Open Price] ),",
+              "    SUM( Stocks[Open Price] ),",
+              "    BLANK()",
+              ")",
+              ""
+            ],
+            "lineageTag": "613073a8-e59b-4bf8-8d62-c09cd134e1fd",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Month Avg Close",
+            "expression": [
+              "",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    ALLEXCEPT( 'DateTable', 'DateTable'[Year], 'DateTable'[MonthNo] )",
+              ")"
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "63874072-22f6-42c0-b50a-9605106c1585",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Current Month Avg Close",
+            "expression": [
+              "",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    DATESMTD( 'DateTable'[Date] )",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "99e5ecf1-34e2-4267-a459-0ea99a5e3158",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Previous Month Avg Close",
+            "expression": [
+              "",
+              "CALCULATE(",
+              "    AVERAGE( Stocks[Close Price] ),",
+              "    DATEADD(DateTable[Date],-1,MONTH)",
+              ")",
+              ""
+            ],
+            "formatString": "\"₹\"\\ #,0.###############;#,0.###############\\ -\"₹\";\"₹\"\\ #,0.###############",
+            "lineageTag": "3cfeaf17-8d99-44e4-bd21-49e8e9d0f582",
+            "annotations": [
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"currencyCulture\":\"en-IN\"}"
+              }
+            ]
+          },
+          {
+            "name": "Period Return in %",
+            "expression": [
+              "",
+              "VAR _start = MIN('DateTable'[Date])",
+              "VAR _end   = MAX('DateTable'[Date])",
+              "VAR _secs  = VALUES( Securities[Security Codes] )",
+              "",
+              "RETURN",
+              "IF(",
+              "    ISBLANK(_start) || ISBLANK(_end) || COUNTROWS(_secs)=0,",
+              "    BLANK(),",
+              "    AVERAGEX(",
+              "        _secs,",
+              "        VAR sc = Securities[Security Codes]",
+              "        VAR d1 = CALCULATE( MIN( Stocks[Date] ),",
+              "                    FILTER( ALL(Stocks),",
+              "                        Stocks[Security Codes]=sc",
+              "                        && Stocks[Date] >= _start",
+              "                        && Stocks[Date] <= _end",
+              "                    )",
+              "                )",
+              "        VAR d2 = CALCULATE( MAX( Stocks[Date] ),",
+              "                    FILTER( ALL(Stocks),",
+              "                        Stocks[Security Codes]=sc",
+              "                        && Stocks[Date] >= _start",
+              "                        && Stocks[Date] <= _end",
+              "                    )",
+              "                )",
+              "        VAR c1 = IF( ISBLANK(d1), BLANK(),",
+              "                    CALCULATE( MAX( Stocks[Close Price] ),",
+              "                        FILTER( ALL(Stocks),",
+              "                            Stocks[Security Codes]=sc && Stocks[Date]=d1",
+              "                        )",
+              "                    )",
+              "                )",
+              "        VAR c2 = IF( ISBLANK(d2), BLANK(),",
+              "                    CALCULATE( MAX( Stocks[Close Price] ),",
+              "                        FILTER( ALL(Stocks),",
+              "                            Stocks[Security Codes]=sc && Stocks[Date]=d2",
+              "                        )",
+              "                    )",
+              "                )",
+              "        RETURN",
+              "            IF( OR( ISBLANK(c1), ISBLANK(c2) ), BLANK(), DIVIDE( c2 - c1, c1 ) )",
+              "    )",
+              ")",
+              ""
+            ],
+            "formatString": "0.00%;-0.00%;0.00%",
+            "lineageTag": "89ab8c9c-8240-4dc8-a043-76c40ff70746"
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "BankSelectorA",
+        "lineageTag": "7b76a8e1-9ae7-42ac-af6c-88b6c69f17d8",
+        "columns": [
+          {
+            "name": "Bank A",
+            "dataType": "string",
+            "sourceColumn": "Bank A",
+            "lineageTag": "1cb35795-0d80-4db3-9132-ec2bd1cef3ea",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "BankSelectorA",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"hZLfT4MwEMf/lYZnH6YPvksJ2dzmjIjRzD3c1ioVOJK2LPLfe8AQWkxMn+7zvd7v/T64S1lSQlGwWCHgSbIQMGcbK4LDFamvq8QlZIgMcAZzVn0Q1JUAB61QKJdsIQMNJrO65xyQ7C5gb0skqWDzCFzZhqWoKi89T0IXRNwHVHIB36VycSzFsbX73hUlTaQ+q5M0Uxf5W80Al1HMXbLi9DwUhTNC32KljfU4ih4sq9oo/JwKXX1bqU/UQf+tdZiV2Q0JxyFe7N1ZaiPBOEKbQ7gV3ENZ1uy9XixubtmallMq7XqsQSNYyGGGa81eGtP4QkXO7a4pl/a0xxq/4DikS4ZqptoDWFrzZe6d8BRu3ChJVduMTRofFQtW/nE/z1CqAkF086RxqsI795TvxoSTQ3OivEnz33FdB4fDDw==\", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#\"Bank A\" = _t]),",
+                "    #\"Changed Type\" = Table.TransformColumnTypes(Source,{{\"Bank A\", type text}})",
+                "in",
+                "    #\"Changed Type\""
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "BankSelectorB",
+        "lineageTag": "16bfee7f-ba26-4704-82e4-fad1fbcf97a8",
+        "columns": [
+          {
+            "name": "Bank B",
+            "dataType": "string",
+            "sourceColumn": "Bank B",
+            "lineageTag": "04790962-e4cf-429c-b941-a3652dc85a90",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "BankSelectorB",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"hZLfT4MwEMf/lYZnH6YPvksJ2dzmjIjRzD3c1ioVOJK2LPLfe8AQWkxMn+7zvd7v/T64S1lSQlGwWCHgSbIQMGcbK4LDFamvq8QlZIgMcAZzVn0Q1JUAB61QKJdsIQMNJrO65xyQ7C5gb0skqWDzCFzZhqWoKi89T0IXRNwHVHIB36VycSzFsbX73hUlTaQ+q5M0Uxf5W80Al1HMXbLi9DwUhTNC32KljfU4ih4sq9oo/JwKXX1bqU/UQf+tdZiV2Q0JxyFe7N1ZaiPBOEKbQ7gV3ENZ1uy9XixubtmallMq7XqsQSNYyGGGa81eGtP4QkXO7a4pl/a0xxq/4DikS4ZqptoDWFrzZe6d8BRu3ChJVduMTRofFQtW/nE/z1CqAkF086RxqsI795TvxoSTQ3OivEnz33FdB4fDDw==\", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#\"Bank B\" = _t]),",
+                "    #\"Changed Type\" = Table.TransformColumnTypes(Source,{{\"Bank B\", type text}})",
+                "in",
+                "    #\"Changed Type\""
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Calculation group",
+        "lineageTag": "33c5eea1-26e4-4fdf-9dc9-699a91070296",
+        "calculationGroup": {
+          "calculationItems": [
+            {
+              "name": "Bank A Metrics",
+              "expression": [
+                "",
+                "",
+                "VAR code = [Selected Bank A Code]",
+                "RETURN",
+                "IF(",
+                "    ISBLANK(code),",
+                "    SELECTEDMEASURE(),",
+                "    CALCULATE(",
+                "        SELECTEDMEASURE(),",
+                "        -- remove any existing security filter (so TREATAS can apply cleanly)",
+                "        REMOVEFILTERS( Securities[Security Codes] ),",
+                "        -- apply only the requested security",
+                "        TREATAS( { code }, Securities[Security Codes] )",
+                "        -- NOTE: do NOT remove Date filters here — we want SELECTEDMEASURE() date-intel to still work.",
+                "    )",
+                ")",
+                ""
+              ]
+            },
+            {
+              "name": "Bank B Metrics",
+              "expression": [
+                "",
+                "",
+                "VAR code = [Selected Bank B Code]",
+                "RETURN",
+                "IF(",
+                "    ISBLANK(code),",
+                "    SELECTEDMEASURE(),",
+                "    CALCULATE(",
+                "        SELECTEDMEASURE(),",
+                "        REMOVEFILTERS( Securities[Security Codes] ),",
+                "        TREATAS( { code }, Securities[Security Codes] )",
+                "    )",
+                ")"
+              ]
+            }
+          ]
+        },
+        "columns": [
+          {
+            "name": "Calculation group column",
+            "dataType": "string",
+            "sourceColumn": "Name",
+            "sortByColumn": "Ordinal",
+            "lineageTag": "aa19073f-1216-4740-87f8-1b02124df6af",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Ordinal",
+            "dataType": "int64",
+            "sourceColumn": "Ordinal",
+            "formatString": "0",
+            "lineageTag": "f21ae265-2145-4bd7-8604-2a91dff66521",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Calculation group",
+            "mode": "import",
+            "source": {
+              "type": "calculationGroup"
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "AutoDetected_6d2a3b81-1be1-49bc-bbbb-61ed258d3680",
+        "fromTable": "Stocks",
+        "fromColumn": "Security Codes",
+        "toTable": "Securities",
+        "toColumn": "Security Codes"
+      },
+      {
+        "name": "f9ccda2d-fbea-d733-4d84-8bd0e067197d",
+        "fromTable": "Stocks",
+        "fromColumn": "Date",
+        "toTable": "DateTable",
+        "toColumn": "Date"
+      }
+    ],
+    "cultures": [
+      {
+        "name": "en-US",
+        "linguisticMetadata": {
+          "content": {
+            "Version": "1.0.0",
+            "Language": "en-US"
+          },
+          "contentType": "json"
+        }
+      }
+    ],
+    "expressions": [
+      {
+        "name": "Parameter1",
+        "kind": "m",
+        "expression": "#\"Sample File\" meta [IsParameterQuery=true, BinaryIdentifier=#\"Sample File\", Type=\"Binary\", IsParameterQueryRequired=true]",
+        "queryGroup": "Transform File from Query1\\Helper Queries",
+        "lineageTag": "9e7d2bb6-c7ed-48a5-8d29-5125b83fb346",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Binary"
+          }
+        ]
+      },
+      {
+        "name": "Sample File",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    Source = SharePoint.Files(\"https://shaktiwork.sharepoint.com/sites/ShaktiProjects\", [ApiVersion = 15]),",
+          "    #\"Removed Columns\" = Table.RemoveColumns(Source,{\"Extension\", \"Date accessed\", \"Date modified\", \"Date created\", \"Attributes\", \"Folder Path\"}),",
+          "    Navigation1 = #\"Removed Columns\"{0}[Content]",
+          "in",
+          "    Navigation1"
+        ],
+        "queryGroup": "Transform File from Query1\\Helper Queries",
+        "lineageTag": "9e84531d-c760-49ed-8bad-5495753d1b30",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Binary"
+          }
+        ]
+      },
+      {
+        "name": "Transform Sample File",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    Source = Csv.Document(Parameter1,[Delimiter=\",\", Columns=13, Encoding=1252, QuoteStyle=QuoteStyle.None]),",
+          "    #\"Promoted Headers\" = Table.PromoteHeaders(Source, [PromoteAllScalars=true])",
+          "in",
+          "    #\"Promoted Headers\""
+        ],
+        "queryGroup": "Transform File from Query1",
+        "lineageTag": "856e4210-8261-4b0d-9ad0-039da81bdf17",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Transform File",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    Source = (Parameter1 as binary) => let",
+          "    Source = Csv.Document(Parameter1,[Delimiter=\",\", Columns=13, Encoding=1252, QuoteStyle=QuoteStyle.None]),",
+          "    #\"Promoted Headers\" = Table.PromoteHeaders(Source, [PromoteAllScalars=true])",
+          "in",
+          "    #\"Promoted Headers\"",
+          "in",
+          "    Source"
+        ],
+        "queryGroup": "Transform File from Query1\\Helper Queries",
+        "mAttributes": "[ FunctionQueryBinding = \"{\"\"exemplarFormulaName\"\":\"\"Transform Sample File\"\"}\" ]",
+        "lineageTag": "d813976c-235b-4296-ad33-9ee8e305f58c",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Function"
+          }
+        ]
+      },
+      {
+        "name": "Stocks1",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    Source = SharePoint.Files(\"https://shaktiwork.sharepoint.com/sites/ShaktiProjects\", [ApiVersion = 15]),",
+          "    #\"Removed Columns\" = Table.RemoveColumns(Source,{\"Extension\", \"Date accessed\", \"Date modified\", \"Date created\", \"Attributes\", \"Folder Path\"}),",
+          "    #\"Filtered Hidden Files1\" = Table.SelectRows(#\"Removed Columns\", each [Attributes]?[Hidden]? <> true),",
+          "    #\"Invoke Custom Function1\" = Table.AddColumn(#\"Filtered Hidden Files1\", \"Transform File\", each #\"Transform File\"([Content])),",
+          "    #\"Expanded Transform File\" = Table.ExpandTableColumn(#\"Invoke Custom Function1\", \"Transform File\", {\"Date\", \"Open Price\", \"High Price\", \"Low Price\", \"Close Price\", \"WAP\", \"No.of Shares\", \"No. of Trades\", \"Total Turnover (Rs.)\", \"Deliverable Quantity\", \"% Deli. Qty to Traded Qty\", \"Spread High-Low\", \"Spread Close-Open\", \"Column1\", \"Column2\", \"Column3\", \"Column4\", \"Column5\", \"Column6\", \"Column7\", \"Column8\", \"Column9\", \"Column10\", \"Column11\", \"Column12\", \"Column13\"}, {\"Date\", \"Open Price\", \"High Price\", \"Low Price\", \"Close Price\", \"WAP\", \"No.of Shares\", \"No. of Trades\", \"Total Turnover (Rs.)\", \"Deliverable Quantity\", \"% Deli. Qty to Traded Qty\", \"Spread High-Low\", \"Spread Close-Open\", \"Column1\", \"Column2\", \"Column3\", \"Column4\", \"Column5\", \"Column6\", \"Column7\", \"Column8\", \"Column9\", \"Column10\", \"Column11\", \"Column12\", \"Column13\"}),",
+          "    #\"Removed Columns1\" = Table.RemoveColumns(#\"Expanded Transform File\",{\"Column1\", \"Column2\", \"Column3\", \"Column4\", \"Column5\", \"Column6\", \"Column7\", \"Column8\", \"Column9\", \"Column10\", \"Column11\", \"Column12\", \"Column13\", \"Content\"}),",
+          "    #\"Inserted Text Before Delimiter\" = Table.AddColumn(#\"Removed Columns1\", \"Text Before Delimiter\", each Text.BeforeDelimiter([Name], \" \"), type text),",
+          "    #\"Renamed Columns\" = Table.RenameColumns(#\"Inserted Text Before Delimiter\",{{\"Text Before Delimiter\", \"Security codes\"}}),",
+          "    #\"Removed Columns2\" = Table.RemoveColumns(#\"Renamed Columns\",{\"Name\"}),",
+          "    #\"Filtered Rows\" = Table.SelectRows(#\"Removed Columns2\", each ([Date] <> null)),",
+          "    #\"Sorted Rows\" = Table.Sort(#\"Filtered Rows\",{{\"Security codes\", Order.Descending}}),",
+          "    #\"Inserted Text Before Delimiter1\" = Table.AddColumn(#\"Sorted Rows\", \"Text Before Delimiter\", each Text.BeforeDelimiter([Security codes], \".\"), type text),",
+          "    #\"Removed Columns3\" = Table.RemoveColumns(#\"Inserted Text Before Delimiter1\",{\"Security codes\"}),",
+          "    #\"Renamed Columns1\" = Table.RenameColumns(#\"Removed Columns3\",{{\"Text Before Delimiter\", \"Security Codes\"}}),",
+          "    #\"Changed Type\" = Table.TransformColumnTypes(#\"Renamed Columns1\",{{\"Date\", type date}, {\"Open Price\", Currency.Type}, {\"High Price\", Currency.Type}, {\"Low Price\", Currency.Type}, {\"Close Price\", Currency.Type}, {\"WAP\", type number}, {\"No.of Shares\", Int64.Type}, {\"No. of Trades\", Int64.Type}, {\"Total Turnover (Rs.)\", Currency.Type}, {\"Deliverable Quantity\", Int64.Type}, {\"% Deli. Qty to Traded Qty\", type number}, {\"Spread High-Low\", type number}, {\"Spread Close-Open\", type number}, {\"Security Codes\", Int64.Type}}),",
+          "    #\"Sorted Rows1\" = Table.Sort(#\"Changed Type\",{{\"Security Codes\", Order.Ascending}, {\"Date\", Order.Descending}})",
+          "in",
+          "    #\"Sorted Rows1\""
+        ],
+        "queryGroup": "Transform File from Query1",
+        "lineageTag": "e4e90265-be23-4791-bcf4-909a1f92e819",
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navigation"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Securities1",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"dZRPc5swEMW/isbnHCQh/h0LHk+ok6ZT6kw7SQ4bo9SqQcwIyNTfvoJFGZDb8Y3fW+nt066fnjafDqRsoK7JTmnQR0ky0Gdy11ebm00oaMTY5uXGyn4U5QoFnLNwQvZrdQK9LmQsDBw9k/bNUtNWgJUsECtW6Eo5JNIVuocTGOhOvZkFIcdbc9AWTJciEAlemEttxTX5x+FJMteq/kIOWrX6qiWKgjJbt8OTKJ7INs+8mjjmSGwGNfxplMdZgmfuZPU6AsxZWYelNO/qKLuPWwTlsdPKjx5mSqmIMJvb7S73kLukyO3PNxBj2sU2K/wyFs3InrhTpuvXtakI0JANEcltO3RK/3IKHogodIqpvXtpjjYJPGhU+l0yJuLAlah5bub3YWIJHt6l6SR0C0WQJE4x+qiuska7n6FpBvI8UMojsrfj0yjjPzXFMPdgNPRwBo9HIXd8MOTx0l3WipRSim3sW1s+Dqr1Y8BLmAt09HXQv+HVWSqd9emugKfhUvQFejua8/PPwx3hGn7L7rwFpXP+ZTv0J7KIdDnVGFrZQy+v92IcA+z1OzSq1lBNj2jfUNXe30EQpjgwh/xh4S6k6GGxUuvFEzGm8FN2fswi+c/2MCuIQ5oK6+3lLw==\", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#\"Bank Names\" = _t, #\"Security Codes\" = _t]),",
+          "    #\"Changed Type\" = Table.TransformColumnTypes(Source,{{\"Bank Names\", type text}, {\"Security Codes\", Int64.Type}})",
+          "in",
+          "    #\"Changed Type\""
+        ],
+        "queryGroup": "Transform File from Query1",
+        "lineageTag": "5871c2c5-68da-4acd-a5c7-30e77a8f89d0",
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navigation"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      }
+    ],
+    "queryGroups": [
+      {
+        "folder": "Transform File from Query1",
+        "annotations": [
+          {
+            "name": "PBI_QueryGroupOrder",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "folder": "Transform File from Query1\\Helper Queries",
+        "annotations": [
+          {
+            "name": "PBI_QueryGroupOrder",
+            "value": "0"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "1"
+      },
+      {
+        "name": "PBI_QueryOrder",
+        "value": "[\"Stocks1\",\"Sample File\",\"Parameter1\",\"Transform Sample File\",\"Transform File\",\"Securities1\",\"Market Overview\",\"Stocks\",\"Securities\",\"Trends & Patterns\",\"BankSelectorA\",\"BankSelectorB\"]"
+      },
+      {
+        "name": "PBI_ProTooling",
+        "value": "[\"DaxQueryView_Desktop\",\"CalcGroup\"]"
+      },
+      {
+        "name": "TabularEditor_SerializeOptions",
+        "value": "{\"IgnoreInferredObjects\":true,\"IgnoreInferredProperties\":true,\"IgnoreTimestamps\":true,\"SplitMultilineStrings\":true,\"PrefixFilenames\":false,\"LocalTranslations\":false,\"LocalPerspectives\":false,\"LocalRelationships\":false,\"Levels\":[\"Data Sources\",\"Shared Expressions\",\"Perspectives\",\"Relationships\",\"Roles\",\"Tables\",\"Tables/Columns\",\"Tables/Hierarchies\",\"Tables/Measures\",\"Tables/Partitions\",\"Tables/Calculation Items\",\"Translations\"]}"
+      },
+      {
+        "name": "__TEdtr",
+        "value": "1"
+      }
+    ]
+  }
+}

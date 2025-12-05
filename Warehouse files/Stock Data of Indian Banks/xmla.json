@@ -1,0 +1,348 @@
+{
+  "name": "{{Dataset_Name}}",
+  "compatibilityLevel": 1604,
+  "model": {
+    "name": "{{Dataset_Name}}",
+    "culture": "en-US",
+    "collation": "Latin1_General_100_BIN2_UTF8",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "en-US",
+    "tables": [
+      {
+        "name": "Securities",
+        "sourceLineageTag": "[dbo].[Securities]",
+        "columns": [
+          {
+            "name": "Bank Names",
+            "dataType": "string",
+            "sourceColumn": "Bank Names",
+            "sourceProviderType": "varchar",
+            "sourceLineageTag": "Bank Names",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Security Codes",
+            "dataType": "int64",
+            "sourceColumn": "Security Codes",
+            "formatString": "0",
+            "sourceProviderType": "bigint",
+            "sourceLineageTag": "Security Codes",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "{{Partition_Name}}",
+            "mode": "directLake",
+            "source": {
+              "type": "entity",
+              "entityName": "Securities",
+              "expressionSource": "DatabaseQuery",
+              "schemaName": "dbo"
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "IsTableInBiModel",
+            "value": "False"
+          }
+        ]
+      },
+      {
+        "name": "Stocks",
+        "sourceLineageTag": "[dbo].[Stocks]",
+        "columns": [
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "General Date",
+            "sourceProviderType": "date",
+            "sourceLineageTag": "Date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Open Price",
+            "dataType": "double",
+            "sourceColumn": "Open Price",
+            "sourceProviderType": "decimal",
+            "sourceLineageTag": "Open Price",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "High Price",
+            "dataType": "double",
+            "sourceColumn": "High Price",
+            "sourceProviderType": "decimal",
+            "sourceLineageTag": "High Price",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Low Price",
+            "dataType": "double",
+            "sourceColumn": "Low Price",
+            "sourceProviderType": "decimal",
+            "sourceLineageTag": "Low Price",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Close Price",
+            "dataType": "double",
+            "sourceColumn": "Close Price",
+            "sourceProviderType": "decimal",
+            "sourceLineageTag": "Close Price",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "WAP",
+            "dataType": "double",
+            "sourceColumn": "WAP",
+            "sourceProviderType": "float",
+            "sourceLineageTag": "WAP",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "No.of Shares",
+            "dataType": "int64",
+            "sourceColumn": "No.of Shares",
+            "formatString": "0",
+            "sourceProviderType": "bigint",
+            "sourceLineageTag": "No.of Shares",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "No. of Trades",
+            "dataType": "int64",
+            "sourceColumn": "No. of Trades",
+            "formatString": "0",
+            "sourceProviderType": "bigint",
+            "sourceLineageTag": "No. of Trades",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Total Turnover _Rs._",
+            "dataType": "double",
+            "sourceColumn": "Total Turnover _Rs._",
+            "sourceProviderType": "decimal",
+            "sourceLineageTag": "Total Turnover _Rs._",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Deliverable Quantity",
+            "dataType": "int64",
+            "sourceColumn": "Deliverable Quantity",
+            "formatString": "0",
+            "sourceProviderType": "bigint",
+            "sourceLineageTag": "Deliverable Quantity",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "% Deli. Qty to Traded Qty",
+            "dataType": "double",
+            "sourceColumn": "% Deli. Qty to Traded Qty",
+            "sourceProviderType": "float",
+            "sourceLineageTag": "% Deli. Qty to Traded Qty",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Spread High-Low",
+            "dataType": "double",
+            "sourceColumn": "Spread High-Low",
+            "sourceProviderType": "float",
+            "sourceLineageTag": "Spread High-Low",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Spread Close-Open",
+            "dataType": "double",
+            "sourceColumn": "Spread Close-Open",
+            "sourceProviderType": "float",
+            "sourceLineageTag": "Spread Close-Open",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "PBI_FormatHint",
+                "value": "{\"isGeneralNumber\":true}"
+              }
+            ]
+          },
+          {
+            "name": "Security Codes",
+            "dataType": "int64",
+            "sourceColumn": "Security Codes",
+            "formatString": "0",
+            "sourceProviderType": "bigint",
+            "sourceLineageTag": "Security Codes",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "{{Partition_Name}}",
+            "mode": "directLake",
+            "source": {
+              "type": "entity",
+              "entityName": "Stocks",
+              "expressionSource": "DatabaseQuery",
+              "schemaName": "dbo"
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "IsTableInBiModel",
+            "value": "False"
+          }
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "name": "DatabaseQuery",
+        "kind": "m",
+        "expression": "let\n    database = {{TDS_Endpoint}}\nin\n    database\n"
+      }
+    ],
+    "annotations": [
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "0"
+      },
+      {
+        "name": "SourceLineageTagType",
+        "value": "DatabaseFullyQualifiedName"
+      }
+    ]
+  }
+}
