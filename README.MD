@@ -17,12 +17,16 @@ This project demonstrates a full **Power BI Admin + Microsoft Fabric** implement
 * **Medallion-style modeling (Bronze → Silver → Gold)**
 * **Warehouse creation with SQL Project (sqlproj)**
 * **Optimized semantic model (model.json)**
-* **Enterprise-grade Power BI Report with 14 pages**
-* **Governance, security, performance, and deployment considerations**
-
-This aligns directly with **Power BI Admin responsibilities** in the Cognizant job description.
+* **Enterprise-grade Power BI Report**
+* **Security, performance, and deployment considerations**
 
 ---
+
+## 📌 **Source of Stock Market Data**
+> Link to Source- [BSE India t+1 settlement](https://www.bseindia.com/markets/equity/EQReports/StockPrcHistori.html?flag=0)
+
+## 📌 **Live Report**
+> Link to Report- [Stock Market Analysis of Indian Banks](https://app.powerbi.com/view?r=eyJrIjoiOWM0ZGFlZmQtYjIyOC00OGFkLTk2MTgtMjE5M2NmM2YxODUxIiwidCI6IjVmOGI3NGFkLWJkOGUtNDA4MC1iZGM2LTkyMDg0OTdhMjNmNCJ9)
 
 # 📌 **2. Architecture Diagram (Lineage View)**
 
@@ -39,7 +43,7 @@ This aligns directly with **Power BI Admin responsibilities** in the Cognizant j
 | **Silver Layer**        | Dataflow Gen2                        | Cleans, transforms, normalizes stock datasets     |
 | **Gold Layer**          | Fabric Warehouse                     | Business-ready relational tables used by Power BI |
 | **Semantic Layer**      | Power BI Dataset (model.json)        | Measures, relationships, model optimizations      |
-| **Visualization Layer** | Power BI Report (14 pages)           | Market intelligence & investor insights           |
+| **Visualization Layer** | Power BI Report                      | Market intelligence & investor insights           |
 | **Admin Layer**         | Governance, Monitoring, Optimization | Power BI Admin responsibilities                   |
 
 ---
@@ -48,7 +52,7 @@ This aligns directly with **Power BI Admin responsibilities** in the Cognizant j
 
 ## **3.1 JavaScript Scrapers (Automated Download System)**
 
-Your repo includes:
+This repo includes:
 
 * `code optimized.js`
 * `paste.js`
@@ -87,7 +91,6 @@ Each CSV contains:
 | Total Turnover  | Liquidity measure         |
 | Deliverable Qty | Investor holding behavior |
 | % Deliverable   | Delivery ratio            |
-| Security Code   | Key to Securities table   |
 
 ---
 
@@ -95,7 +98,7 @@ Each CSV contains:
 
 > 
 
-After adding the SharePoint folder as a shortcut, CSV files are accessible directly in Fabric through the **Files** section of the Lakehouse.
+After adding the Onedrive folder as a shortcut, CSV files are accessible directly in Fabric through the **Files** section of the Lakehouse.
 
 ---
 
@@ -119,7 +122,7 @@ Dataflow output automatically lands in the **Warehouse** gold layer.
 
 # 📌 **6. Fabric Warehouse (Gold Layer)**
 
-> 📷 Insert Screenshots:
+> 
 
 * `Preview_of_Securities_table`
 ![Securities_preview](Images/Preview_of_Securities_table.png)
@@ -150,15 +153,16 @@ This Warehouse represents your **enterprise data mart**.
 | Total Turnover            | Rupee turnover                   |
 | Deliverable Qty           | # of shares delivered            |
 | % Deliverable             | long-term holding characteristic |
-| Spread Values             | Spread Close, Spread H-L         |
+| Spread Open-Close         | Spread Open-Close values         |
+| Spread H-L                | Spread High-Low values           |
 | Security Code             | Foreign key to Securities table  |
 
 **Included in repo:**
 
 * Full Warehouse SQL project (sqlproj)
 * Schema definitions
-* Stored procedures (if any)
-* Deployment artifacts
+
+> Link to the [Warehouse files](Warehouse_files)
 
 ---
 
@@ -178,9 +182,8 @@ Model also contains optimized measures such as:
 * `Sector Avg Return %`
 * `Sector Volatility (σ)`
 * `Market Mood %`
-* Rolling Volatility (7d, 30d)
-* Bank-to-bank comparisons
-* Risk Score (0–100)
+* `Rolling Volatility (7d, 30d)`
+* `Bank-to-bank comparisons`
 
 Model follows **Power BI Admin performance best practices**:
 
@@ -192,17 +195,16 @@ Model follows **Power BI Admin performance best practices**:
 
 ---
 
-# 📌 **8. Power BI Report (14 Pages)**
+# 📌 **8. Power BI Report**
 
 A fully interactive investor analytics report with admin-grade optimization.
 
-Below is the full page documentation **exactly as you will include in your README**, with screenshots attached.
 
 ---
 
 # 🟦 **PAGE 1 — Executive Summary / Market Overview**
 
-> 
+> ![Executive_summary](Images/Market_Overview.png)
 
 ### Purpose:
 
@@ -228,7 +230,7 @@ High-level KPIs summarizing sector performance, liquidity, momentum, and sentime
 
 # 🟦 **PAGE 2 — Price Trends & Patterns**
 
-> 
+> ![trends_and_patterns](Images/Trends_and_patterns.png)
 
 ### Purpose:
 
@@ -251,7 +253,7 @@ Visualize price patterns, seasonality, and multi-bank comparisons.
 
 # 🟦 **PAGE 3 — Volatility, Spreads & Risk Indicators**
 
-> 
+> ![indicators](Images/Indicators.png)
 
 ### Purpose:
 
@@ -351,26 +353,14 @@ This README positions you as a **Power BI Admin / Fabric Engineer** capable of m
 ```
 /
 ├── README.md
-├── /data
-│   ├── raw_csv/
-│   ├── cleaned/
-│   ├── sample/
-├── /fabric
-│   ├── lakehouse/
-│   ├── warehouse_sqlproj.zip
-│   ├── dataflow_gen2_template.pqt
-│   ├── model.json
-├── /scripts
+├── /Dataflow_gen_2_template            #contains pqt template
+├── /Images                             #contains image files
+├── /Js codes for Data Collection       #contains js codes
 │   ├── code optimized.js
 │   ├── paste.js
-├── /powerbi
-│   ├── report.pbix
-│   ├── report_screenshots/
-│   │   ├── page1.png
-│   │   ├── page2.png
-│   │   ├── page3.png
-│   │   └── ...
-└── LICENSE
+├── /Power BI report                    #contains pbix file
+├── /Semantic Model                     #semantic model                    
+└── Warehouse_files                     #Sqlproj and schema
 ```
 
 ---
